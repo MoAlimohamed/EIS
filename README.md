@@ -60,68 +60,63 @@ on a log-frequency axis before inference.
 
 ---
 
-## Architecture Notes
+## ⚙️ Architecture Notes
 
-- **Input shape:** `(1, 100, 6)` — 100 frequency points × 6 features
-- **Feature order:** `[Freq, Z_real, Z_imag, −Freq, −Z_real, −Z_imag]`
-- **Classifier:** Conv1D stack → GlobalAveragePooling → Dense(1024) → softmax(5)
-- **Regression:** Conv1D stack → Dense(512) → Dense(64) → linear output
-PHASE 1 — DATA GENERATION
-┌─────────────────────────────────────────────┐
-│  📓 EIS_data_simulation.ipynb               │
-│                                             │
-│  • Simulates 5 equivalent circuit models   │
-│  • Generates synthetic EIS spectra         │
-│  • Saves: xy_data_33k_5circuit_v2.mat      │
-│           xy_data_131k_regC1_v2.mat  etc.  │
-└─────────────────────┬───────────────────────┘
-                      │ .mat files
-                      ▼
-PHASE 2 — MODEL TRAINING
-┌─────────────────────────────────────────────┐
-│  📓 Classification_model_Build_and_         │
-│     Optimization.ipynb                      │
-│                                             │
-│  • Loads the 33k 5-circuit .mat file       │
-│  • Builds Conv1D + Dense classifier        │
-│  • Trains & saves → Classifier.h5          │
-└─────────────────────┬───────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────┐
-│  📓 Bulid_and_Evaluation_for_Regression_    │
-│     model_C1 / C2 / C3 / C4 / C5.ipynb     │
-│                                             │
-│  • Loads each circuit's 131k .mat file     │
-│  • Builds regression model per circuit     │
-│  • Trains & saves → RegC1.h5 … RegC5.h5   │
-└─────────────────────┬───────────────────────┘
-                      │
-PHASE 3 — EVALUATION
-┌─────────────────────▼───────────────────────┐
-│  📓 Model_evaluation.ipynb                  │
-│                                             │
-│  • Loads Classifier.h5 + all RegCX.h5      │
-│  • Tests on unseen data                    │
-│  • Reports accuracy, MAE, confusion matrix │
-└─────────────────────┬───────────────────────┘
-                      │  ✅ Models are good?
-                      ▼
-PHASE 4 — DEPLOYMENT
-┌─────────────────────────────────────────────┐
-│  🌐 eis_analyzer_app.py  (Streamlit)        │
-│                                             │
-│  • Only uses the saved .h5 files           │
-│  • Users upload real EIS data              │
-│  • Classifies + predicts parameters        │
-└─────────────────────────────────────────────┘
-Now I have the complete picture — the features are actually [Z_imag, phase, |Z|] (not Frequency/Z_real), and I can see all 5 circuit topologies and exact parameter indices. Let me build the full all-in-one app.Ran 3 commands, created a file, edited a fileRan 3 commands, created a file, edited a fileThis is a complete all-in-one app (978 lines). Here's what every page does:
+* **Input shape:** `(1, 100, 6)` — 100 frequency points × 6 features
+* **Feature order:** `[Freq, Z_real, Z_imag, −Freq, −Z_real, −Z_imag]`
+* **Classifier:** Conv1D stack → GlobalAveragePooling → Dense(1024) → softmax(5)
+* **Regression:** Conv1D stack → Dense(512) → Dense(64) → linear output
 
-🗺️ The 5 Pages
-PageWhat happens🏠 HomeOverview of the full pipeline and circuit topologies🔬 Data GenerationConfigures and runs EIS simulation for all 5 circuits — previews Nyquist plots, class distributions, and parameter histograms🧠 Train ModelsTwo tabs: trains the Classifier and 5 Regression models with live loss curves, configurable epochs/batch size. Each model has a ⬇️ Download .h5 button📊 EvaluationConfusion matrix, accuracy curves for the classifier; Predicted-vs-True scatter plots with MAE & MAPE per parameter for each regression model⚡ EIS AnalyzerUpload real CSV data → Nyquist + Bode plots → classify → predict parameters with metric cards and downloadable CSV
+---
 
-🔑 Key technical facts from your notebooks (now correctly implemented)
+## 🔄 Machine Learning Pipeline Workflow
 
-Features are [Z_imag, phase°, |Z|] (not Frequency/Z_real) — this matches arrange_data() exactly
-Ideality factor (alpha) is generated but excluded from regression outputs — matching your Dense(3/4/5/6) layer counts
-Q values are scaled ×10⁶ during training, then unscaled for display
-All 5 exact circuit topologies from sim_cir1() through sim_cir5() are faithfully reproduced
+### PHASE 1 — DATA GENERATION
+* **Notebook:** `EIS_data_simulation.ipynb`
+* Simulates 5 equivalent circuit models.
+* Generates synthetic EIS spectra.
+* Saves data to: `xy_data_33k_5circuit_v2.mat`, `xy_data_131k_regC1_v2.mat`, etc.
+
+### PHASE 2 — MODEL TRAINING
+* **Classification Model:** `Classification_model_Build_and_Optimization.ipynb`
+    * Loads the 33k 5-circuit `.mat` file.
+    * Builds Conv1D + Dense classifier.
+    * Trains & saves → `Classifier.h5`
+* **Regression Models:** `Bulid_and_Evaluation_for_Regression_model_C1 / C2 / C3 / C4 / C5.ipynb`
+    * Loads each circuit's 131k `.mat` file.
+    * Builds regression model per circuit.
+    * Trains & saves → `RegC1.h5` … `RegC5.h5`
+
+### PHASE 3 — EVALUATION
+* **Notebook:** `Model_evaluation.ipynb`
+* Loads `Classifier.h5` + all `RegCX.h5` files.
+* Tests on unseen data.
+* Reports accuracy, MAE, and confusion matrix.
+* *(Checkpoint: Are models good? If yes, proceed to deployment).*
+
+### PHASE 4 — DEPLOYMENT
+* **App:** `eis_analyzer_app.py` (Streamlit)
+* Only uses the saved `.h5` files.
+* Users upload real EIS data.
+* Classifies + predicts parameters.
+
+---
+
+## 🗺️ The 5 App Pages
+
+| Page | What happens |
+| :--- | :--- |
+| **🏠 Home** | Overview of the full pipeline and circuit topologies. |
+| **🔬 Data Generation** | Configures and runs EIS simulation for all 5 circuits — previews Nyquist plots, class distributions, and parameter histograms. |
+| **🧠 Train Models** | Two tabs: trains the Classifier and 5 Regression models with live loss curves, configurable epochs/batch size. Each model has a ⬇️ Download `.h5` button. |
+| **📊 Evaluation** | Confusion matrix, accuracy curves for the classifier; Predicted-vs-True scatter plots with MAE & MAPE per parameter for each regression model. |
+| **⚡ EIS Analyzer** | Upload real CSV data → Nyquist + Bode plots → classify → predict parameters with metric cards and downloadable CSV. |
+
+---
+
+## 🔑 Key Technical Facts
+
+* **Actual Features:** Features are `[Z_imag, phase°, |Z|]` (not Frequency/Z_real) — this matches the `arrange_data()` function exactly.
+* **Ideality Factor:** The ideality factor (alpha) is generated during simulation but excluded from regression outputs — matching the `Dense(3/4/5/6)` layer counts.
+* **Q Value Scaling:** Q values are scaled by a factor of `10⁶` during training, then unscaled for display in the app.
+* **Topologies:** All 5 exact circuit topologies from `sim_cir1()` through `sim_cir5()` are faithfully reproduced.
