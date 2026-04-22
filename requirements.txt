@@ -4,4 +4,4 @@ pandas
 plotly
 scipy
 scikit-learn
-tensorflow
+tensorflow-cpu
